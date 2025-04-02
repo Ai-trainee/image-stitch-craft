@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -35,19 +36,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -88,6 +82,10 @@
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
+
+  html {
+    @apply dark;
+  }
 }
 
 @layer base {
@@ -96,6 +94,32 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-tool-dark text-foreground;
+  }
+}
+
+@layer components {
+  .tool-button {
+    @apply bg-transparent hover:bg-tool-primary hover:text-black text-white px-3 py-1.5 rounded transition-all duration-200 text-sm;
+  }
+  
+  .tool-button-primary {
+    @apply bg-tool-primary text-black px-3 py-1.5 rounded transition-all duration-200 text-sm;
+  }
+
+  .tool-layout-option {
+    @apply border border-gray-700 rounded-md p-2 cursor-pointer transition-all duration-200 flex flex-col items-center justify-center gap-1;
+  }
+
+  .tool-layout-option.active {
+    @apply border-tool-primary;
+  }
+
+  .tool-icon {
+    @apply text-gray-400;
+  }
+
+  .tool-dropdown {
+    @apply bg-tool-secondary border border-gray-700 rounded-md p-2 text-white;
   }
 }
