@@ -12,7 +12,7 @@ interface OptionsPanelProps {
   autoSize: boolean;
   format: string;
   quality: number;
-  layout: "single" | "row" | "grid";  // Added layout prop
+  layout: "single" | "row" | "grid";
   onRowsChange: (rows: number) => void;
   onColumnsChange: (columns: number) => void;
   onSpacingChange: (spacing: number) => void;
@@ -28,7 +28,7 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
   autoSize,
   format,
   quality,
-  layout,  // Use the added layout prop
+  layout,
   onRowsChange,
   onColumnsChange,
   onSpacingChange,
@@ -37,20 +37,20 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
   onQualityChange,
 }) => {
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       <div>
         <h3 className="text-gray-400 text-sm mb-2">图片模式</h3>
         <div className="flex space-x-2">
           <Button
             variant="outline"
-            className={cn("rounded-md flex-1", { "bg-tool-primary text-black": autoSize })}
+            className={cn("rounded-md flex-1 h-9", { "bg-tool-primary text-black": autoSize })}
             onClick={() => onAutoSizeChange(true)}
           >
-            自动
+            自适应
           </Button>
           <Button
             variant="outline"
-            className={cn("rounded-md flex-1", { "bg-tool-primary text-black": !autoSize })}
+            className={cn("rounded-md flex-1 h-9", { "bg-tool-primary text-black": !autoSize })}
             onClick={() => onAutoSizeChange(false)}
           >
             统一尺寸
@@ -58,46 +58,70 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <div className="text-gray-400 text-sm mb-2">列数</div>
-          <Select
-            value={columns.toString()}
-            onValueChange={(value) => onColumnsChange(parseInt(value))}
-            disabled={layout === "row"}
-          >
-            <SelectTrigger className="bg-tool-secondary border-gray-700 text-white">
-              <SelectValue placeholder="2" />
-            </SelectTrigger>
-            <SelectContent className="bg-tool-secondary border-gray-700 text-white">
-              {[1, 2, 3, 4, 5, 6].map((num) => (
-                <SelectItem key={num} value={num.toString()}>
-                  {num}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {layout !== "single" && (
+        <div className="grid grid-cols-2 gap-3">
+          {layout === "grid" && (
+            <div>
+              <div className="text-gray-400 text-sm mb-2">行数</div>
+              <Select
+                value={rows.toString()}
+                onValueChange={(value) => onRowsChange(parseInt(value))}
+              >
+                <SelectTrigger className="bg-tool-secondary border-gray-700 text-white h-9">
+                  <SelectValue placeholder="2" />
+                </SelectTrigger>
+                <SelectContent className="bg-tool-secondary border-gray-700 text-white">
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          {layout === "grid" && (
+            <div>
+              <div className="text-gray-400 text-sm mb-2">列数</div>
+              <Select
+                value={columns.toString()}
+                onValueChange={(value) => onColumnsChange(parseInt(value))}
+              >
+                <SelectTrigger className="bg-tool-secondary border-gray-700 text-white h-9">
+                  <SelectValue placeholder="2" />
+                </SelectTrigger>
+                <SelectContent className="bg-tool-secondary border-gray-700 text-white">
+                  {[1, 2, 3, 4, 5, 6].map((num) => (
+                    <SelectItem key={num} value={num.toString()}>
+                      {num}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          
+          <div className={layout === "grid" ? "col-span-2" : "col-span-2"}>
+            <div className="text-gray-400 text-sm mb-2">间距</div>
+            <Select
+              value={spacing.toString()}
+              onValueChange={(value) => onSpacingChange(parseInt(value))}
+            >
+              <SelectTrigger className="bg-tool-secondary border-gray-700 text-white h-9">
+                <SelectValue placeholder="0" />
+              </SelectTrigger>
+              <SelectContent className="bg-tool-secondary border-gray-700 text-white">
+                {[0, 5, 10, 15, 20, 30].map((num) => (
+                  <SelectItem key={num} value={num.toString()}>
+                    {num}px
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-
-        <div>
-          <div className="text-gray-400 text-sm mb-2">间距</div>
-          <Select
-            value={spacing.toString()}
-            onValueChange={(value) => onSpacingChange(parseInt(value))}
-          >
-            <SelectTrigger className="bg-tool-secondary border-gray-700 text-white">
-              <SelectValue placeholder="0" />
-            </SelectTrigger>
-            <SelectContent className="bg-tool-secondary border-gray-700 text-white">
-              {[0, 5, 10, 15, 20, 30].map((num) => (
-                <SelectItem key={num} value={num.toString()}>
-                  {num}px
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      )}
 
       <div>
         <div className="text-gray-400 text-sm mb-2">输出格式</div>
@@ -105,13 +129,13 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
           value={format}
           onValueChange={onFormatChange}
         >
-          <SelectTrigger className="bg-tool-secondary border-gray-700 text-white">
+          <SelectTrigger className="bg-tool-secondary border-gray-700 text-white h-9">
             <SelectValue placeholder="png" />
           </SelectTrigger>
           <SelectContent className="bg-tool-secondary border-gray-700 text-white">
-            <SelectItem value="png">PNG</SelectItem>
-            <SelectItem value="jpeg">JPEG</SelectItem>
-            <SelectItem value="webp">WebP</SelectItem>
+            <SelectItem value="png">PNG (无损)</SelectItem>
+            <SelectItem value="jpeg">JPEG (有损)</SelectItem>
+            <SelectItem value="webp">WebP (高压缩)</SelectItem>
           </SelectContent>
         </Select>
       </div>

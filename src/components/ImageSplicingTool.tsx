@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from "react";
+
+import React, { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Copy, Download, Undo, Redo, Check } from "lucide-react";
 import LayoutOptions from "@/components/LayoutOptions";
 import OptionsPanel from "@/components/OptionsPanel";
 import ImageUploader from "@/components/ImageUploader";
 import ImagePreview from "@/components/ImagePreview";
-import SplicedImagePreview from "@/components/SplicedImagePreview";
 import LayoutPreview from "@/components/LayoutPreview";
-import { createSplicedImage, downloadImage } from "@/lib/image-processing";
+import { createSplicedImage, downloadImage, copyImageToClipboard } from "@/lib/image-processing";
 import { isImageFile } from "@/lib/image-types";
 
 const ImageSplicingTool: React.FC = () => {
@@ -27,8 +28,9 @@ const ImageSplicingTool: React.FC = () => {
     blob: Blob | null;
     canvas: HTMLCanvasElement | null;
   }>({ url: null, blob: null, canvas: null });
-  const [showPreview, setShowPreview] = useState(false);
   const [activeTab, setActiveTab] = useState<"upload" | "edit">("upload");
+  const [isCopied, setIsCopied] = useState(false);
+  const resultContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
@@ -50,9 +52,22 @@ const ImageSplicingTool: React.FC = () => {
       }
     };
 
+    // Handle keyboard shortcuts
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+C to copy result image
+      if (e.ctrlKey && e.key === 'c' && resultImage.canvas) {
+        handleCopyImage();
+      }
+    };
+
     window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  }, [toast, images, activeTab]);
+    window.addEventListener("keydown", handleKeyDown);
+    
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [toast, images, activeTab, resultImage.canvas]);
 
   useEffect(() => {
     if (layout === "row" && images.length > 0) {
@@ -60,6 +75,17 @@ const ImageSplicingTool: React.FC = () => {
       setColumns(1);
     }
   }, [layout, images.length]);
+
+  // Auto-create image when configuration changes
+  useEffect(() => {
+    const debounce = setTimeout(() => {
+      if (images.length > 0) {
+        handleCreateSplicedImage(false);
+      }
+    }, 500);
+    
+    return () => clearTimeout(debounce);
+  }, [layout, rows, columns, spacing, autoSize, format, quality, images]);
 
   const handleImagesSelected = (files: File[]) => {
     const imageFiles = files.filter(isImageFile);
@@ -75,7 +101,6 @@ const ImageSplicingTool: React.FC = () => {
 
     setImages(prev => [...prev, ...imageFiles]);
     toast({
-      title: "图片已添加",
       description: `已添加 ${imageFiles.length} 张图片`,
     });
     
@@ -103,13 +128,8 @@ const ImageSplicingTool: React.FC = () => {
     }
   };
 
-  const handleCreateSplicedImage = async () => {
+  const handleCreateSplicedImage = async (showNotification = true) => {
     if (images.length === 0) {
-      toast({
-        title: "没有图片",
-        description: "请先添加图片",
-        variant: "destructive",
-      });
       return;
     }
 
@@ -129,12 +149,12 @@ const ImageSplicingTool: React.FC = () => {
       const url = URL.createObjectURL(blob);
       
       setResultImage({ url, blob, canvas });
-      setShowPreview(true);
       
-      toast({
-        title: "图片已创建",
-        description: "拼接图片已成功创建，可以复制或下载",
-      });
+      if (showNotification) {
+        toast({
+          description: "拼接图片已创建，Ctrl+C 复制",
+        });
+      }
     } catch (error) {
       console.error("Error creating spliced image:", error);
       toast({
@@ -150,11 +170,31 @@ const ImageSplicingTool: React.FC = () => {
   const handleDownloadImage = () => {
     if (resultImage.blob) {
       downloadImage(resultImage.blob, `spliced-image.${format}`);
+      toast({
+        description: "图片已下载",
+      });
     }
   };
 
-  const handleClosePreview = () => {
-    setShowPreview(false);
+  const handleCopyImage = async () => {
+    if (resultImage.canvas) {
+      const success = await copyImageToClipboard(resultImage.canvas);
+      
+      if (success) {
+        setIsCopied(true);
+        toast({
+          description: "图片已复制到剪贴板",
+        });
+        
+        setTimeout(() => setIsCopied(false), 2000);
+      } else {
+        toast({
+          title: "复制失败",
+          description: "请使用右键菜单或 Ctrl+C 复制",
+          variant: "destructive",
+        });
+      }
+    }
   };
 
   const getCurrentConfig = () => ({
@@ -184,7 +224,6 @@ const ImageSplicingTool: React.FC = () => {
     setActiveTab("upload");
     
     toast({
-      title: "已重置",
       description: "所有图片和设置已重置",
     });
   };
@@ -197,119 +236,183 @@ const ImageSplicingTool: React.FC = () => {
           <span className="text-gray-400">高级图片拼接工具</span>
         </div>
         <Button 
-          className="tool-button-primary"
+          variant="outline"
+          className="text-white border-gray-700 hover:bg-gray-800"
           onClick={handleReset}
         >
           新操作
         </Button>
       </div>
 
-      <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "edit")} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-2 bg-tool-secondary">
-          <TabsTrigger value="upload" className="text-white data-[state=active]:bg-tool-primary data-[state=active]:text-black">
-            上传图片
-          </TabsTrigger>
-          <TabsTrigger value="edit" className="text-white data-[state=active]:bg-tool-primary data-[state=active]:text-black">
-            布局设置
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="upload" className="mt-0 space-y-4">
-          <ImageUploader onImagesSelected={handleImagesSelected} />
-          <ImagePreview 
-            images={images} 
-            onRemoveImage={handleRemoveImage} 
-          />
-        </TabsContent>
-        
-        <TabsContent value="edit" className="mt-0">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 bg-tool-secondary p-4 rounded-lg space-y-6">
-              <LayoutOptions 
-                selectedLayout={layout} 
-                onSelectLayout={handleLayoutChange} 
-              />
-              
-              <OptionsPanel
-                rows={rows}
-                columns={columns}
-                spacing={spacing}
-                autoSize={autoSize}
-                format={format}
-                quality={quality}
-                layout={layout}
-                onRowsChange={setRows}
-                onColumnsChange={setColumns}
-                onSpacingChange={setSpacing}
-                onAutoSizeChange={setAutoSize}
-                onFormatChange={setFormat}
-                onQualityChange={setQuality}
-              />
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-4">
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "upload" | "edit")} className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2 bg-tool-secondary">
+              <TabsTrigger value="upload" className="text-white data-[state=active]:bg-tool-primary data-[state=active]:text-black">
+                上传图片
+              </TabsTrigger>
+              <TabsTrigger value="edit" className="text-white data-[state=active]:bg-tool-primary data-[state=active]:text-black">
+                布局设置
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="upload" className="mt-0 space-y-4">
+              <ImageUploader onImagesSelected={handleImagesSelected} />
+            </TabsContent>
+            
+            <TabsContent value="edit" className="mt-0 space-y-6">
+              <div className="bg-tool-secondary p-4 rounded-lg space-y-6">
+                <LayoutOptions 
+                  selectedLayout={layout} 
+                  onSelectLayout={handleLayoutChange} 
+                />
+                
+                <OptionsPanel
+                  rows={rows}
+                  columns={columns}
+                  spacing={spacing}
+                  autoSize={autoSize}
+                  format={format}
+                  quality={quality}
+                  layout={layout}
+                  onRowsChange={setRows}
+                  onColumnsChange={setColumns}
+                  onSpacingChange={setSpacing}
+                  onAutoSizeChange={setAutoSize}
+                  onFormatChange={setFormat}
+                  onQualityChange={setQuality}
+                />
+                
+                <div className="bg-tool-dark/40 rounded-lg p-3 text-xs space-y-1.5">
+                  <div className="flex justify-between text-gray-400">
+                    <span>当前设置:</span>
+                    <span>{layout === 'single' ? '单幅' : layout === 'row' ? '单列' : '网格'}</span>
+                  </div>
+                  {layout !== 'single' && (
+                    <div className="flex justify-between text-gray-400">
+                      <span>{layout === 'row' ? '行数:' : '布局:'}</span>
+                      <span>{layout === 'row' ? rows : `${rows}×${columns}`}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between text-gray-400">
+                    <span>间距:</span>
+                    <span>{spacing}px</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>格式:</span>
+                    <span>{format.toUpperCase()} {format !== 'png' && `(${quality}%)`}</span>
+                  </div>
+                </div>
+              </div>
+            </TabsContent>
+          </Tabs>
 
-              <LayoutPreview 
-                images={images}
-                config={getCurrentConfig()}
-                className="h-48 mt-4 mb-4"
-              />
+          <div className="mt-2">
+            <ImagePreview 
+              images={images} 
+              onRemoveImage={handleRemoveImage} 
+            />
+          </div>
+        </div>
 
-              <div className="mt-6">
-                <Button 
-                  className="w-full bg-tool-primary text-black hover:bg-opacity-90"
-                  onClick={handleCreateSplicedImage}
+        <div className="lg:col-span-2 flex flex-col h-full space-y-4">
+          <div className="bg-tool-secondary p-4 rounded-lg flex-grow">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-gray-400 text-sm">实时预览 ({images.length} 张图片)</h3>
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-white border-gray-700 hover:bg-gray-800 h-8"
+                  onClick={() => handleCreateSplicedImage(true)}
                   disabled={isProcessing || images.length === 0}
                 >
-                  {isProcessing ? "处理中..." : "创建拼接图片"}
+                  {isProcessing ? "处理中..." : "刷新预览"}
                 </Button>
-                <p className="text-xs text-gray-500 mt-2 text-center">
-                  完成后可使用 Ctrl+C 复制图片
-                </p>
               </div>
             </div>
-
-            <div className="md:col-span-2">
-              <div className="bg-tool-secondary p-4 rounded-lg">
-                <h3 className="text-gray-400 text-sm mb-4">预览区域 ({images.length} 张图片)</h3>
-                
-                {images.length > 0 ? (
-                  <div className="relative border border-gray-700 rounded-lg overflow-hidden">
-                    <LayoutPreview 
-                      images={images}
-                      config={getCurrentConfig()}
-                      className="w-full aspect-video"
+            
+            <div className="relative border border-gray-700 rounded-lg overflow-hidden mb-4">
+              {images.length > 0 ? (
+                <div 
+                  ref={resultContainerRef}
+                  className="relative bg-[#1a1a1a] bg-grid-pattern h-[320px] flex items-center justify-center"
+                >
+                  {resultImage.url ? (
+                    <img 
+                      src={resultImage.url} 
+                      alt="拼接结果" 
+                      className="max-w-full max-h-full object-contain"
                     />
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center bg-tool-dark/30 border border-gray-700 rounded-lg p-8 h-64">
-                    <p className="text-gray-500 mb-4">暂无图片，请先上传</p>
-                    <Button 
-                      variant="outline" 
-                      onClick={() => setActiveTab("upload")}
-                      className="bg-transparent border-gray-700 text-gray-400 hover:text-white"
-                    >
-                      去上传图片
-                    </Button>
-                  </div>
-                )}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-gray-500">
+                      <div className="w-8 h-8 border-2 border-tool-primary border-t-transparent rounded-full animate-spin mb-2"></div>
+                      <p>生成预览中...</p>
+                    </div>
+                  )}
+                  
+                  {isProcessing && (
+                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                      <div className="w-8 h-8 border-2 border-tool-primary border-t-transparent rounded-full animate-spin"></div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center bg-tool-dark/30 border border-gray-700 rounded-lg p-8 h-[320px]">
+                  <p className="text-gray-500 mb-4">暂无图片，请先上传</p>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => setActiveTab("upload")}
+                    className="bg-transparent border-gray-700 text-gray-400 hover:text-white"
+                  >
+                    上传图片
+                  </Button>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-between items-center">
+              <div className="text-xs text-gray-500">
+                {resultImage.url && `格式: ${format.toUpperCase()}${format !== 'png' ? ` · 质量: ${quality}%` : ''}`}
               </div>
               
-              <ImagePreview 
-                images={images} 
-                onRemoveImage={handleRemoveImage} 
-              />
+              <div className="flex space-x-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-white border-gray-700 hover:bg-gray-800 gap-1.5"
+                  onClick={handleCopyImage}
+                  disabled={!resultImage.canvas || isProcessing}
+                >
+                  {isCopied ? <Check size={14} /> : <Copy size={14} />}
+                  {isCopied ? "已复制" : "复制图片"}
+                </Button>
+                
+                <Button
+                  variant="outline"
+                  size="sm" 
+                  className="text-white border-gray-700 hover:bg-gray-800 gap-1.5"
+                  onClick={handleDownloadImage}
+                  disabled={!resultImage.blob || isProcessing}
+                >
+                  <Download size={14} />
+                  下载
+                </Button>
+              </div>
             </div>
           </div>
-        </TabsContent>
-      </Tabs>
-
-      {showPreview && (
-        <SplicedImagePreview
-          imageUrl={resultImage.url}
-          blob={resultImage.blob}
-          canvas={resultImage.canvas}
-          onClose={handleClosePreview}
-          onDownload={handleDownloadImage}
-        />
-      )}
+          
+          <div className="bg-tool-secondary p-3 rounded-lg">
+            <div className="text-xs text-gray-400 flex items-center justify-between">
+              <span>快捷键: </span>
+              <div className="flex space-x-4">
+                <span><kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-300">Ctrl+V</kbd> 粘贴图片</span>
+                <span><kbd className="px-1.5 py-0.5 bg-gray-800 rounded text-gray-300">Ctrl+C</kbd> 复制结果</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

@@ -108,7 +108,7 @@ export const downloadImage = (blob: Blob, filename: string) => {
 
 export const copyImageToClipboard = async (canvas: HTMLCanvasElement): Promise<boolean> => {
   try {
-    // Convert canvas to blob
+    // Try the Clipboard API first (most modern browsers)
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob((b) => {
         if (b) resolve(b);
@@ -126,6 +126,54 @@ export const copyImageToClipboard = async (canvas: HTMLCanvasElement): Promise<b
     return true;
   } catch (error) {
     console.error("Error copying image to clipboard:", error);
+    
+    try {
+      // Fallback for browsers that don't support ClipboardItem
+      canvas.toBlob(async (blob) => {
+        if (blob) {
+          try {
+            // Create a temporary image element
+            const img = document.createElement('img');
+            img.src = URL.createObjectURL(blob);
+            
+            // Create a temporary div for the image
+            const div = document.createElement('div');
+            div.contentEditable = 'true';
+            div.style.position = 'fixed';
+            div.style.opacity = '0';
+            div.appendChild(img);
+            
+            // Add to DOM, select, and try to copy
+            document.body.appendChild(div);
+            
+            // Select the image
+            const range = document.createRange();
+            range.selectNode(div);
+            const selection = window.getSelection();
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+            
+            // Execute copy command
+            const success = document.execCommand('copy');
+            
+            // Clean up
+            selection?.removeAllRanges();
+            document.body.removeChild(div);
+            URL.revokeObjectURL(img.src);
+            
+            return success;
+          } catch (fallbackError) {
+            console.error("Fallback copy method failed:", fallbackError);
+            return false;
+          }
+        }
+        return false;
+      });
+    } catch (fallbackError) {
+      console.error("All copy methods failed:", fallbackError);
+      return false;
+    }
+    
     return false;
   }
 };
