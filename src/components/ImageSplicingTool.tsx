@@ -1,14 +1,12 @@
-
 import React, { useState, useEffect, useRef } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Copy, Download, Undo, Redo, Check } from "lucide-react";
+import { Copy, Download, Check } from "lucide-react";
 import LayoutOptions from "@/components/LayoutOptions";
 import OptionsPanel from "@/components/OptionsPanel";
 import ImageUploader from "@/components/ImageUploader";
 import ImagePreview from "@/components/ImagePreview";
-import LayoutPreview from "@/components/LayoutPreview";
 import { createSplicedImage, downloadImage, copyImageToClipboard } from "@/lib/image-processing";
 import { isImageFile } from "@/lib/image-types";
 
@@ -69,10 +67,17 @@ const ImageSplicingTool: React.FC = () => {
     };
   }, [toast, images, activeTab, resultImage.canvas]);
 
+  // Special handling for single layout mode
   useEffect(() => {
-    if (layout === "row" && images.length > 0) {
+    if (layout === "single" && images.length > 1) {
+      // In single mode with multiple images, we'll display them in a single row
+      setRows(1);
+      setColumns(1); // This will be adjusted in the image processing function
+    } else if (layout === "row" && images.length > 0) {
       setRows(images.length);
       setColumns(1);
+    } else if (layout === "grid") {
+      // Keep the user-set values for rows and columns
     }
   }, [layout, images.length]);
 
@@ -227,6 +232,20 @@ const ImageSplicingTool: React.FC = () => {
       description: "所有图片和设置已重置",
     });
   };
+  
+  // Determine what to display in the layout info section
+  const getLayoutDescription = () => {
+    if (layout === 'single') {
+      if (images.length <= 1) {
+        return '单幅';
+      }
+      return `横排 (${images.length} 张图片)`;
+    } else if (layout === 'row') {
+      return `单列 (${rows} 张图片)`;
+    } else {
+      return `网格 (${rows}×${columns})`;
+    }
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
@@ -286,17 +305,15 @@ const ImageSplicingTool: React.FC = () => {
                 <div className="bg-tool-dark/40 rounded-lg p-3 text-xs space-y-1.5">
                   <div className="flex justify-between text-gray-400">
                     <span>当前设置:</span>
-                    <span>{layout === 'single' ? '单幅' : layout === 'row' ? '单列' : '网格'}</span>
+                    <span>{getLayoutDescription()}</span>
                   </div>
-                  {layout !== 'single' && (
-                    <div className="flex justify-between text-gray-400">
-                      <span>{layout === 'row' ? '行数:' : '布局:'}</span>
-                      <span>{layout === 'row' ? rows : `${rows}×${columns}`}</span>
-                    </div>
-                  )}
                   <div className="flex justify-between text-gray-400">
                     <span>间距:</span>
                     <span>{spacing}px</span>
+                  </div>
+                  <div className="flex justify-between text-gray-400">
+                    <span>图片模式:</span>
+                    <span>{autoSize ? '保持原尺寸' : '统一尺寸'}</span>
                   </div>
                   <div className="flex justify-between text-gray-400">
                     <span>格式:</span>

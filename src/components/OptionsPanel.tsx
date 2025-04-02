@@ -46,15 +46,20 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
             className={cn("rounded-md flex-1 h-9", { "bg-tool-primary text-black": autoSize })}
             onClick={() => onAutoSizeChange(true)}
           >
-            自适应
+            <span className={autoSize ? "text-black" : "text-gray-300"}>保持原尺寸</span>
           </Button>
           <Button
             variant="outline"
             className={cn("rounded-md flex-1 h-9", { "bg-tool-primary text-black": !autoSize })}
             onClick={() => onAutoSizeChange(false)}
           >
-            统一尺寸
+            <span className={!autoSize ? "text-black" : "text-gray-300"}>统一尺寸</span>
           </Button>
+        </div>
+        <div className="mt-1 text-xs text-gray-500">
+          {autoSize 
+            ? "保持每张图片原始尺寸，可能大小不一" 
+            : "所有图片调整为第一张图片的尺寸"}
         </div>
       </div>
 

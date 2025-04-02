@@ -26,28 +26,59 @@ export const createSplicedImage = async (
     })
   );
 
-  // Calculate dimensions
+  // Handle empty images array
+  if (loadedImages.length === 0) {
+    const canvas = document.createElement("canvas");
+    canvas.width = 400;
+    canvas.height = 300;
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.fillStyle = "#1a1a1a";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    return new Promise((resolve) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve({ blob, canvas });
+        } else {
+          // Fallback if toBlob fails
+          const defaultBlob = new Blob([], { type: `image/${format}` });
+          resolve({ blob: defaultBlob, canvas });
+        }
+      }, `image/${format}`, quality / 100);
+    });
+  }
+
+  // Calculate dimensions based on the layout mode
   let maxWidth = 0;
   let maxHeight = 0;
+  let actualRows = rows;
+  let actualColumns = columns;
+  
+  // For single mode - always display images in a single row
+  if (rows === 1 && columns === 1 && loadedImages.length > 1) {
+    actualRows = 1;
+    actualColumns = loadedImages.length;
+  }
 
   if (autoSize) {
-    // Find the maximum dimensions
+    // Find the maximum dimensions from all images
     for (const img of loadedImages) {
       maxWidth = Math.max(maxWidth, img.width);
       maxHeight = Math.max(maxHeight, img.height);
     }
   } else {
-    // Use the first image as reference
+    // For uniform size, use the dimensions of the first image for all
     if (loadedImages.length > 0) {
       maxWidth = loadedImages[0].width;
       maxHeight = loadedImages[0].height;
     }
   }
 
-  // Create canvas
+  // Create canvas with appropriate dimensions
   const canvas = document.createElement("canvas");
-  const totalWidth = columns * maxWidth + (columns - 1) * spacing;
-  const totalHeight = rows * maxHeight + (rows - 1) * spacing;
+  const totalWidth = actualColumns * maxWidth + Math.max(0, (actualColumns - 1) * spacing);
+  const totalHeight = actualRows * maxHeight + Math.max(0, (actualRows - 1) * spacing);
   
   canvas.width = totalWidth;
   canvas.height = totalHeight;
@@ -62,19 +93,24 @@ export const createSplicedImage = async (
 
   // Draw images on canvas
   let index = 0;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < columns; c++) {
+  for (let r = 0; r < actualRows; r++) {
+    for (let c = 0; c < actualColumns; c++) {
       if (index >= loadedImages.length) break;
 
       const img = loadedImages[index];
       const x = c * (maxWidth + spacing);
       const y = r * (maxHeight + spacing);
       
-      // Center the image in its cell
-      const imgX = x + (maxWidth - img.width) / 2;
-      const imgY = y + (maxHeight - img.height) / 2;
+      if (autoSize) {
+        // Center the image in its cell
+        const imgX = x + (maxWidth - img.width) / 2;
+        const imgY = y + (maxHeight - img.height) / 2;
+        ctx.drawImage(img, imgX, imgY);
+      } else {
+        // For uniform size, resize all images to the first image's dimensions
+        ctx.drawImage(img, x, y, maxWidth, maxHeight);
+      }
       
-      ctx.drawImage(img, imgX, imgY);
       index++;
     }
   }

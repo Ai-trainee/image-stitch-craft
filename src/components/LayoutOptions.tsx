@@ -25,7 +25,7 @@ const LayoutOptions: React.FC<LayoutOptionsProps> = ({
           <div className="w-full h-12 flex items-center justify-center">
             <Square size={24} className={selectedLayout === "single" ? "text-tool-primary" : "text-gray-500"} />
           </div>
-          <span className="text-xs text-gray-400">单幅</span>
+          <span className="text-xs text-gray-400">横排</span>
         </div>
 
         <div
