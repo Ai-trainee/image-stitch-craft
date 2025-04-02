@@ -1,0 +1,6 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+我们使用next.js开发项目，我们会热重载，不要运行npm run dev。
