@@ -11,7 +11,7 @@ export interface SplicedImageConfig {
 export const createSplicedImage = async (
   images: File[],
   config: SplicedImageConfig
-): Promise<Blob> => {
+): Promise<{ blob: Blob, canvas: HTMLCanvasElement }> => {
   const { rows, columns, spacing, format, quality, autoSize } = config;
   
   // Load all images
@@ -80,11 +80,11 @@ export const createSplicedImage = async (
   }
 
   // Convert to desired format
-  return new Promise<Blob>((resolve, reject) => {
+  return new Promise<{ blob: Blob, canvas: HTMLCanvasElement }>((resolve, reject) => {
     canvas.toBlob(
       (blob) => {
         if (blob) {
-          resolve(blob);
+          resolve({ blob, canvas });
         } else {
           reject(new Error("Failed to create image blob"));
         }
@@ -104,4 +104,41 @@ export const downloadImage = (blob: Blob, filename: string) => {
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
+};
+
+export const copyImageToClipboard = async (canvas: HTMLCanvasElement): Promise<boolean> => {
+  try {
+    // Convert canvas to blob
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => {
+        if (b) resolve(b);
+        else reject(new Error("Failed to create blob from canvas"));
+      });
+    });
+
+    // Use the clipboard API to copy
+    await navigator.clipboard.write([
+      new ClipboardItem({
+        [blob.type]: blob
+      })
+    ]);
+    
+    return true;
+  } catch (error) {
+    console.error("Error copying image to clipboard:", error);
+    return false;
+  }
+};
+
+export const createPreviewLayout = async (
+  images: File[],
+  config: SplicedImageConfig
+): Promise<string> => {
+  try {
+    const { blob, canvas } = await createSplicedImage(images, config);
+    return URL.createObjectURL(blob);
+  } catch (error) {
+    console.error("Error creating preview:", error);
+    return "";
+  }
 };
