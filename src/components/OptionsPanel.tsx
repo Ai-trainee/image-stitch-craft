@@ -58,8 +58,8 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
         </div>
         <div className="mt-1 text-xs text-gray-500">
           {autoSize 
-            ? "保持每张图片原始尺寸，可能大小不一" 
-            : "所有图片调整为第一张图片的尺寸"}
+            ? "保持每张图片原始尺寸，无缝拼接" 
+            : "所有图片统一为第一张图片的尺寸"}
         </div>
       </div>
 

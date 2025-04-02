@@ -1,4 +1,3 @@
-
 export interface SplicedImageConfig {
   rows: number;
   columns: number;
@@ -49,86 +48,185 @@ export const createSplicedImage = async (
     });
   }
 
-  // Calculate dimensions based on the layout mode
-  let maxWidth = 0;
-  let maxHeight = 0;
+  // Determine layout based on mode
   let actualRows = rows;
   let actualColumns = columns;
   
-  // For single mode - always display images in a single row
+  // Special handling for single mode with multiple images (横排) - display in a single row
   if (rows === 1 && columns === 1 && loadedImages.length > 1) {
     actualRows = 1;
     actualColumns = loadedImages.length;
   }
 
+  // Calculate the maximum dimensions for each cell
+  let maxWidth = 0;
+  let maxHeight = 0;
+
   if (autoSize) {
-    // Find the maximum dimensions from all images
-    for (const img of loadedImages) {
-      maxWidth = Math.max(maxWidth, img.width);
-      maxHeight = Math.max(maxHeight, img.height);
+    // For autoSize mode, determine dimensions differently
+    // For each position in the grid, find the image that will go there
+    // and use its dimensions
+    const imageDimensions: { width: number; height: number }[] = [];
+    
+    for (let i = 0; i < loadedImages.length; i++) {
+      const img = loadedImages[i];
+      imageDimensions[i] = { width: img.width, height: img.height };
     }
+
+    // First, calculate total width and height required
+    let totalWidth = 0;
+    let totalHeight = 0;
+    
+    if (actualRows === 1) {
+      // For single row, add up all widths
+      totalWidth = imageDimensions.reduce((sum, dim) => sum + dim.width, 0);
+      maxHeight = Math.max(...imageDimensions.map(dim => dim.height));
+      totalHeight = maxHeight;
+    } else if (actualColumns === 1) {
+      // For single column, add up all heights
+      totalHeight = imageDimensions.reduce((sum, dim) => sum + dim.height, 0);
+      maxWidth = Math.max(...imageDimensions.map(dim => dim.width));
+      totalWidth = maxWidth;
+    } else {
+      // For grid layout, we need to position images more carefully
+      // First, determine dimensions of each cell
+      for (const img of loadedImages) {
+        maxWidth = Math.max(maxWidth, img.width);
+        maxHeight = Math.max(maxHeight, img.height);
+      }
+      
+      // Calculate total canvas dimensions
+      totalWidth = maxWidth * actualColumns;
+      totalHeight = maxHeight * actualRows;
+    }
+    
+    // Add spacing if needed
+    if (spacing > 0) {
+      totalWidth += (actualColumns - 1) * spacing;
+      totalHeight += (actualRows - 1) * spacing;
+    }
+    
+    // Create canvas with calculated dimensions
+    const canvas = document.createElement("canvas");
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
+    
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Could not get canvas context");
+    }
+    
+    // Set background as transparent
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw images on canvas
+    let x = 0;
+    let y = 0;
+    let index = 0;
+    
+    if (actualRows === 1) {
+      // Single row layout
+      for (let c = 0; c < Math.min(actualColumns, loadedImages.length); c++) {
+        const img = loadedImages[c];
+        ctx.drawImage(img, x, (totalHeight - img.height) / 2);
+        x += img.width + (c < actualColumns - 1 ? spacing : 0);
+      }
+    } else if (actualColumns === 1) {
+      // Single column layout
+      for (let r = 0; r < Math.min(actualRows, loadedImages.length); r++) {
+        const img = loadedImages[r];
+        ctx.drawImage(img, (totalWidth - img.width) / 2, y);
+        y += img.height + (r < actualRows - 1 ? spacing : 0);
+      }
+    } else {
+      // Grid layout
+      for (let r = 0; r < actualRows; r++) {
+        x = 0;
+        for (let c = 0; c < actualColumns; c++) {
+          if (index >= loadedImages.length) break;
+          
+          const img = loadedImages[index];
+          const cellX = x + (maxWidth - img.width) / 2;
+          const cellY = y + (maxHeight - img.height) / 2;
+          
+          ctx.drawImage(img, cellX, cellY);
+          
+          x += maxWidth + spacing;
+          index++;
+        }
+        y += maxHeight + spacing;
+      }
+    }
+    
+    // Convert to desired format
+    return new Promise<{ blob: Blob, canvas: HTMLCanvasElement }>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve({ blob, canvas });
+          } else {
+            reject(new Error("Failed to create image blob"));
+          }
+        },
+        `image/${format}`,
+        quality / 100
+      );
+    });
   } else {
     // For uniform size, use the dimensions of the first image for all
     if (loadedImages.length > 0) {
       maxWidth = loadedImages[0].width;
       maxHeight = loadedImages[0].height;
     }
-  }
 
-  // Create canvas with appropriate dimensions
-  const canvas = document.createElement("canvas");
-  const totalWidth = actualColumns * maxWidth + Math.max(0, (actualColumns - 1) * spacing);
-  const totalHeight = actualRows * maxHeight + Math.max(0, (actualRows - 1) * spacing);
-  
-  canvas.width = totalWidth;
-  canvas.height = totalHeight;
+    // Create canvas with appropriate dimensions
+    const canvas = document.createElement("canvas");
+    const totalWidth = actualColumns * maxWidth + (actualColumns - 1) * spacing;
+    const totalHeight = actualRows * maxHeight + (actualRows - 1) * spacing;
+    
+    canvas.width = totalWidth;
+    canvas.height = totalHeight;
 
-  const ctx = canvas.getContext("2d");
-  if (!ctx) {
-    throw new Error("Could not get canvas context");
-  }
+    const ctx = canvas.getContext("2d");
+    if (!ctx) {
+      throw new Error("Could not get canvas context");
+    }
 
-  // Set background as transparent
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Set background as transparent
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw images on canvas
-  let index = 0;
-  for (let r = 0; r < actualRows; r++) {
-    for (let c = 0; c < actualColumns; c++) {
-      if (index >= loadedImages.length) break;
+    // Draw images on canvas
+    let index = 0;
+    for (let r = 0; r < actualRows; r++) {
+      for (let c = 0; c < actualColumns; c++) {
+        if (index >= loadedImages.length) break;
 
-      const img = loadedImages[index];
-      const x = c * (maxWidth + spacing);
-      const y = r * (maxHeight + spacing);
-      
-      if (autoSize) {
-        // Center the image in its cell
-        const imgX = x + (maxWidth - img.width) / 2;
-        const imgY = y + (maxHeight - img.height) / 2;
-        ctx.drawImage(img, imgX, imgY);
-      } else {
+        const img = loadedImages[index];
+        const x = c * (maxWidth + spacing);
+        const y = r * (maxHeight + spacing);
+        
         // For uniform size, resize all images to the first image's dimensions
         ctx.drawImage(img, x, y, maxWidth, maxHeight);
+        
+        index++;
       }
-      
-      index++;
     }
-  }
 
-  // Convert to desired format
-  return new Promise<{ blob: Blob, canvas: HTMLCanvasElement }>((resolve, reject) => {
-    canvas.toBlob(
-      (blob) => {
-        if (blob) {
-          resolve({ blob, canvas });
-        } else {
-          reject(new Error("Failed to create image blob"));
-        }
-      },
-      `image/${format}`,
-      quality / 100
-    );
-  });
+    // Convert to desired format
+    return new Promise<{ blob: Blob, canvas: HTMLCanvasElement }>((resolve, reject) => {
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            resolve({ blob, canvas });
+          } else {
+            reject(new Error("Failed to create image blob"));
+          }
+        },
+        `image/${format}`,
+        quality / 100
+      );
+    });
+  }
 };
 
 export const downloadImage = (blob: Blob, filename: string) => {

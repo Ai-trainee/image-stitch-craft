@@ -30,6 +30,10 @@ const ImageSplicingTool: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const resultContainerRef = useRef<HTMLDivElement>(null);
 
+  const handleReorderImages = (newOrder: File[]) => {
+    setImages(newOrder);
+  };
+
   useEffect(() => {
     const handlePaste = (e: ClipboardEvent) => {
       if (e.clipboardData && e.clipboardData.files.length > 0) {
@@ -50,9 +54,7 @@ const ImageSplicingTool: React.FC = () => {
       }
     };
 
-    // Handle keyboard shortcuts
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+C to copy result image
       if (e.ctrlKey && e.key === 'c' && resultImage.canvas) {
         handleCopyImage();
       }
@@ -67,21 +69,17 @@ const ImageSplicingTool: React.FC = () => {
     };
   }, [toast, images, activeTab, resultImage.canvas]);
 
-  // Special handling for single layout mode
   useEffect(() => {
     if (layout === "single" && images.length > 1) {
-      // In single mode with multiple images, we'll display them in a single row
       setRows(1);
-      setColumns(1); // This will be adjusted in the image processing function
+      setColumns(1);
     } else if (layout === "row" && images.length > 0) {
       setRows(images.length);
       setColumns(1);
     } else if (layout === "grid") {
-      // Keep the user-set values for rows and columns
     }
   }, [layout, images.length]);
 
-  // Auto-create image when configuration changes
   useEffect(() => {
     const debounce = setTimeout(() => {
       if (images.length > 0) {
@@ -232,8 +230,7 @@ const ImageSplicingTool: React.FC = () => {
       description: "所有图片和设置已重置",
     });
   };
-  
-  // Determine what to display in the layout info section
+
   const getLayoutDescription = () => {
     if (layout === 'single') {
       if (images.length <= 1) {
@@ -327,7 +324,8 @@ const ImageSplicingTool: React.FC = () => {
           <div className="mt-2">
             <ImagePreview 
               images={images} 
-              onRemoveImage={handleRemoveImage} 
+              onRemoveImage={handleRemoveImage}
+              onReorderImages={handleReorderImages}
             />
           </div>
         </div>
