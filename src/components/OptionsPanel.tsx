@@ -12,6 +12,7 @@ interface OptionsPanelProps {
   autoSize: boolean;
   format: string;
   quality: number;
+  layout: "single" | "row" | "grid";  // Added layout prop
   onRowsChange: (rows: number) => void;
   onColumnsChange: (columns: number) => void;
   onSpacingChange: (spacing: number) => void;
@@ -27,6 +28,7 @@ const OptionsPanel: React.FC<OptionsPanelProps> = ({
   autoSize,
   format,
   quality,
+  layout,  // Use the added layout prop
   onRowsChange,
   onColumnsChange,
   onSpacingChange,

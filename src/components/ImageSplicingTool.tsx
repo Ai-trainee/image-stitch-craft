@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ const ImageSplicingTool: React.FC = () => {
   const [activeTab, setActiveTab] = useState<"upload" | "edit">("upload");
 
   useEffect(() => {
-    // Handle paste events
     const handlePaste = (e: ClipboardEvent) => {
       if (e.clipboardData && e.clipboardData.files.length > 0) {
         const files = Array.from(e.clipboardData.files);
@@ -45,7 +43,6 @@ const ImageSplicingTool: React.FC = () => {
             description: `已添加 ${imageFiles.length} 张图片从剪贴板`,
           });
           
-          // Switch to edit tab if we're still on upload tab
           if (activeTab === "upload" && images.length === 0) {
             setActiveTab("edit");
           }
@@ -57,7 +54,6 @@ const ImageSplicingTool: React.FC = () => {
     return () => window.removeEventListener("paste", handlePaste);
   }, [toast, images, activeTab]);
 
-  // Auto-update rows for row layout based on image count
   useEffect(() => {
     if (layout === "row" && images.length > 0) {
       setRows(images.length);
@@ -83,7 +79,6 @@ const ImageSplicingTool: React.FC = () => {
       description: `已添加 ${imageFiles.length} 张图片`,
     });
     
-    // Switch to edit tab if we added our first images
     if (images.length === 0 && activeTab === "upload") {
       setActiveTab("edit");
     }
@@ -96,7 +91,6 @@ const ImageSplicingTool: React.FC = () => {
   const handleLayoutChange = (newLayout: "single" | "row" | "grid") => {
     setLayout(newLayout);
     
-    // Update rows and columns based on layout
     if (newLayout === "single") {
       setRows(1);
       setColumns(1);
@@ -104,7 +98,6 @@ const ImageSplicingTool: React.FC = () => {
       setRows(images.length || 1);
       setColumns(1);
     } else if (newLayout === "grid") {
-      // Default grid layout
       setRows(2);
       setColumns(2);
     }
@@ -174,7 +167,6 @@ const ImageSplicingTool: React.FC = () => {
   });
 
   const handleReset = () => {
-    // Confirm before reset if there are images
     if (images.length > 0) {
       const confirmed = window.confirm("确定要重置所有图片和设置吗？");
       if (!confirmed) return;
@@ -245,6 +237,7 @@ const ImageSplicingTool: React.FC = () => {
                 autoSize={autoSize}
                 format={format}
                 quality={quality}
+                layout={layout}
                 onRowsChange={setRows}
                 onColumnsChange={setColumns}
                 onSpacingChange={setSpacing}
